@@ -1,0 +1,59 @@
+name: tidb-ai-integration-test
+
+services:
+  redis:
+    image: redis:6.0.16
+    restart: always
+    volumes:
+      - .data/redis:/data
+
+  backend:
+    image: tidbai/backend:${AUTOFLOW_VERSION:-branch-main}
+    platform: linux/amd64
+    restart: always
+    depends_on:
+      - redis
+    ports:
+      - "15001:80"
+    env_file:
+      - .env
+    volumes:
+      - .data/storage:/shared/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+
+  frontend:
+    image: tidbai/frontend:${AUTOFLOW_VERSION:-branch-main}
+    restart: always
+    platform: linux/amd64
+    depends_on:
+      - backend
+    ports:
+      - "13001:3000"
+    environment:
+      BASE_URL: http://backend
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+
+  background:
+    image: tidbai/backend:${AUTOFLOW_VERSION:-branch-main}
+    platform: linux/amd64
+    restart: always
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    command: /usr/bin/supervisord
+    volumes:
+      - .data/storage:/shared/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
